@@ -1,196 +1,462 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PORTAL</title>
+    <title>Portal Shader</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             background: #ffffff;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
-
-        #portalCanvas {
-            width: 90vw;
-            max-width: 400px;
-            height: 70vh;
-            max-height: 600px;
+        .portal-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
         }
-
-        @media (max-width: 768px) {
-            #portalCanvas {
-                width: 85vw;
-                height: 60vh;
-            }
+        canvas {
+            display: block;
+            width: 80vw;
+            max-width: 300px;
+            height: 60vh;
+            max-height: 500px;
+            background: transparent;
         }
     </style>
 </head>
 <body>
-    <canvas id="portalCanvas"></canvas>
+    <div class="portal-container">
+        <canvas id="glCanvas"></canvas>
+    </div>
 
     <script>
-        const canvas = document.getElementById('portalCanvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
 
         if (!gl) {
             alert('WebGL not supported');
         }
 
-        // Set canvas size
-        function resizeCanvas() {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
         // Vertex shader
-        const vertexShaderSource = `
-            attribute vec2 a_position;
+        const vsSource = `
+            attribute vec4 aVertexPosition;
             void main() {
-                gl_Position = vec4(a_position, 0.0, 1.0);
+                gl_Position = aVertexPosition;
             }
         `;
 
-        // Fragment shader - Simple black wavy rectangle
-        const fragmentShaderSource = `
-            precision highp float;
+        // Fragment shader
+        const fsSource = `
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+
             uniform vec2 u_resolution;
             uniform float u_time;
 
-            // Simple noise for wave distortion
-            float noise(vec2 p) {
-                vec2 i = floor(p);
-                vec2 f = fract(p);
-                f = f * f * (3.0 - 2.0 * f);
-
-                float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453123);
-                float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453123);
-                float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453123);
-                float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453123);
-
-                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-            }
-
-            // Rounded rectangle SDF
-            float roundedRect(vec2 p, vec2 size, float radius) {
-                vec2 d = abs(p) - size + radius;
-                return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - radius;
-            }
-
-            // Wavy rounded rectangle
-            float wavyRect(vec2 p, vec2 size, float radius, float time) {
-                float baseDist = roundedRect(p, size, radius);
-
-                float angle = atan(p.y, p.x);
-
-                // Multiple wave frequencies - EXTREME amplitudes
-                float wave1 = sin(angle * 3.0 + time * 1.0) * 0.08;
-                float wave2 = sin(angle * 5.0 - time * 1.5) * 0.05;
-
-                // Organic distortion along the edge
-                vec2 noisePos = p * 5.0 + time * 0.5;
-                float organicWave = (noise(noisePos) - 0.5) * 0.08;
-
-                float totalWave = wave1 + wave2 + organicWave;
-
-                return baseDist + totalWave;
-            }
-
             void main() {
-                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+                vec2 st = gl_FragCoord.xy / u_resolution.xy;
+                vec2 pos = st * 2.0 - 1.0;
+                pos.x *= u_resolution.x / u_resolution.y;
 
-                vec2 rectSize = vec2(0.35, 0.65);
-                float cornerRadius = 0.15;
+                // Rectangle dimensions
+                float width = 0.375;
+                float height = 0.625;
+                float cornerRadius = 0.07;
 
-                // Calculate wavy rectangle
-                float d = wavyRect(uv, rectSize, cornerRadius, u_time);
-                float rectMask = 1.0 - smoothstep(0.0, 0.002, d);
+                // WOBBLY EDGES - distort the position for edge calculation
+                float wobbleAmt = 0.008;
+                float wobbleFreq = 8.0;
+                float wobbleSpeed = 1.5;
+                vec2 wobble = vec2(
+                    sin(pos.y * wobbleFreq + u_time * wobbleSpeed) * wobbleAmt,
+                    sin(pos.x * wobbleFreq + u_time * wobbleSpeed * 1.1) * wobbleAmt
+                );
 
-                // Just black
-                vec3 color = vec3(0.0);
-                color *= rectMask;
+                // Calculate distance for each RGB channel with chromatic offset
+                float caEdge = 0.006;
+
+                vec2 posR = pos + wobble - vec2(caEdge, 0.0);
+                vec2 dR = abs(posR) - vec2(width, height);
+                float distR = length(max(dR, 0.0)) + min(max(dR.x, dR.y), 0.0) - cornerRadius;
+
+                vec2 posG = pos + wobble;
+                vec2 dG = abs(posG) - vec2(width, height);
+                float distG = length(max(dG, 0.0)) + min(max(dG.x, dG.y), 0.0) - cornerRadius;
+
+                vec2 posB = pos + wobble + vec2(caEdge, 0.0);
+                vec2 dB = abs(posB) - vec2(width, height);
+                float distB = length(max(dB, 0.0)) + min(max(dB.x, dB.y), 0.0) - cornerRadius;
+
+                // Signed distance to rounded rectangle (use green for main inside check)
+                float dist = distG;
+
+                // Inside rectangle = black with stars, outside = white
+                float insideR = smoothstep(0.01, 0.0, distR);
+                float insideG = smoothstep(0.01, 0.0, distG);
+                float insideB = smoothstep(0.01, 0.0, distB);
+                float inside = insideG;
+
+                // Start with black for rectangle interior
+                vec3 starColor = vec3(0.0);
+
+                // CENTER PULSING LINE - vertical only
+                if (inside > 0.5) {
+                    float pulse = sin(u_time * 2.0) * 0.5 + 0.5;
+                    float lineThickness = 0.004;
+
+                    // Vertical center line
+                    float vDist = abs(pos.x);
+                    float vLine = smoothstep(lineThickness, 0.0, vDist) * pulse;
+
+                    // Add line (green tint)
+                    starColor.g += vLine * 0.15;
+                }
+
+                // GRID LINES shrinking inward (underneath everything)
+                if (inside > 0.5) {
+                    for (int i = 0; i < 12; i++) {
+                        float fi = float(i);
+
+                        // Stagger each grid's start time
+                        float cycleOffset = fi / 12.0;
+                        float gridSpeed = 0.15;
+                        float t = fract(cycleOffset + u_time * gridSpeed);
+
+                        // Start at edge, shrink toward center
+                        float scale = 1.0 - t;
+
+                        // Grid spacing shrinks with scale
+                        float vGridSpacing = 0.1 * scale;
+                        float hGridSpacing = 0.15 * scale;  // Different spacing for horizontal
+                        float gridLineThickness = 0.001;
+
+                        if (vGridSpacing > 0.01) {
+                            // Vertical lines
+                            float vDist = abs(mod(pos.x + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float vLine = smoothstep(gridLineThickness, 0.0, vDist);
+
+                            // Horizontal lines with offset to avoid center
+                            float hOffset = 0.04; // offset away from center
+                            float hDist = abs(mod(pos.y + hOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float hLine = smoothstep(gridLineThickness, 0.0, hDist);
+
+                            float grid = max(hLine, vLine);
+
+                            // Fade out toward center
+                            float fade = pow(scale, 6.0);
+
+                            // Chromatic aberration
+                            float caOffset = 0.003;
+                            float vDistR = abs(mod(pos.x + caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float hDistR = abs(mod(pos.y + hOffset + caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float gridR = max(smoothstep(gridLineThickness, 0.0, vDistR), smoothstep(gridLineThickness, 0.0, hDistR));
+
+                            float vDistB = abs(mod(pos.x - caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float hDistB = abs(mod(pos.y + hOffset - caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float gridB = max(smoothstep(gridLineThickness, 0.0, vDistB), smoothstep(gridLineThickness, 0.0, hDistB));
+
+                            // Very transparent - dots should be brightest
+                            starColor.r += gridR * fade * 0.15;
+                            starColor.g += grid * fade * 0.15;
+                            starColor.b += gridB * fade * 0.15;
+                        }
+                    }
+                }
+
+                // RECTANGLE OUTLINES emitting from rim, shrinking inward
+                if (inside > 0.5) {
+                    for (int i = 0; i < 24; i++) {
+                        float fi = float(i);
+
+                        // Stagger each ring's start time - much closer together
+                        float cycleOffset = fi / 24.0;
+                        float speed = 0.2;
+                        float t = fract(cycleOffset + u_time * speed);
+
+                        // Start at edge (scale 1.0), shrink toward center (scale 0.0)
+                        float scale = 1.0 - t;
+
+                        // Current rectangle size
+                        float ringWidth = width * scale;
+                        float ringHeight = height * scale;
+                        float ringCorner = cornerRadius * scale;
+
+                        // Signed distance to this ring's rounded rectangle
+                        vec2 ringD = abs(pos) - vec2(ringWidth, ringHeight);
+                        float ringDist = length(max(ringD, 0.0)) + min(max(ringD.x, ringD.y), 0.0) - ringCorner;
+
+                        // Line thickness - gets thinner as it moves inward
+                        float lineThickness = 0.004 * scale + 0.001;
+                        float ring = smoothstep(lineThickness, 0.0, abs(ringDist));
+
+                        // Brightness - extreme fade, only see ~4 lines from edge
+                        float brightness = pow(scale, 8.0) * 2.0;
+
+                        // Fade in at start, very aggressive fade out
+                        float fadeIn = smoothstep(0.0, 0.02, t);
+                        float fadeOut = smoothstep(0.4, 0.0, t);
+                        float fade = fadeIn * fadeOut;
+
+                        // Chromatic aberration on rings - split the difference
+                        float caOffset = 0.014 * (1.0 - scale + 0.3);
+
+                        // Red ring - slightly larger
+                        vec2 ringDR = abs(pos) - vec2(ringWidth + caOffset, ringHeight + caOffset);
+                        float ringDistR = length(max(ringDR, 0.0)) + min(max(ringDR.x, ringDR.y), 0.0) - ringCorner;
+                        float ringR = smoothstep(lineThickness, 0.0, abs(ringDistR));
+
+                        // Blue ring - slightly smaller
+                        vec2 ringDB = abs(pos) - vec2(ringWidth - caOffset, ringHeight - caOffset);
+                        float ringDistB = length(max(ringDB, 0.0)) + min(max(ringDB.x, ringDB.y), 0.0) - ringCorner;
+                        float ringB = smoothstep(lineThickness, 0.0, abs(ringDistB));
+
+                        // Subtle bloom
+                        float bloom = exp(-abs(ringDist) * 50.0) * 0.12;
+
+                        starColor.r += (ringR * brightness + bloom) * fade * 0.2;
+                        starColor.g += (ring * brightness + bloom) * fade * 0.2;
+                        starColor.b += (ringB * brightness + bloom) * fade * 0.2;
+                    }
+                }
+
+                // WARP STARS - only inside the rectangle
+                if (inside > 0.5) {
+                    for (int i = 0; i < 150; i++) {
+                        float fi = float(i);
+
+                        // Pseudo-random seed for each star
+                        float seed1 = fract(sin(fi * 127.1) * 43758.5453);
+                        float seed2 = fract(sin(fi * 269.5) * 18756.234);
+                        float seed3 = fract(sin(fi * 419.2) * 28934.123);
+
+                        // Star position in normalized space
+                        float starX = (seed1 - 0.5) * 2.0;
+                        float starY = (seed2 - 0.5) * 2.0;
+
+                        // Each star has its own cycle offset for continuous flow
+                        float cycleOffset = seed3;
+                        float speed = 0.15;
+
+                        // Z depth - each star starts at different point in cycle
+                        float z = fract(cycleOffset + u_time * speed);
+
+                        // Project star position based on z (perspective)
+                        float scale = 1.0 / (z + 0.1);
+                        vec2 starPos = vec2(starX, starY) * scale * 0.1;
+
+                        // Star size grows as it gets closer
+                        float starSize = (1.0 - z) * 0.008 + 0.001;
+
+                        // Star brightness increases as it approaches
+                        float brightness = (1.0 - z);
+
+                        // Chromatic aberration offset - more separation
+                        float caOffset = 0.02 * length(starPos);
+                        vec2 caDir = normalize(starPos);
+
+                        // Red channel - offset outward
+                        vec2 posR = pos - caDir * caOffset;
+                        float distR = length(posR - starPos);
+                        float starR = smoothstep(starSize, 0.0, distR) * brightness;
+                        float bloomR = exp(-distR * 80.0) * brightness * 0.15;
+
+                        // Green channel - center
+                        float distG = length(pos - starPos);
+                        float starG = smoothstep(starSize, 0.0, distG) * brightness;
+                        float bloomG = exp(-distG * 100.0) * brightness * 0.1;
+
+                        // Blue channel - offset inward
+                        vec2 posB = pos + caDir * caOffset;
+                        float distB = length(posB - starPos);
+                        float starB = smoothstep(starSize, 0.0, distB) * brightness;
+                        float bloomB = exp(-distB * 80.0) * brightness * 0.15;
+
+                        // GLARE - horizontal and vertical streaks
+                        vec2 delta = pos - starPos;
+                        float glareLen = 0.06 * brightness;
+                        float hGlare = exp(-abs(delta.y) * 300.0) * exp(-abs(delta.x) / glareLen) * brightness * 0.15;
+                        float vGlare = exp(-abs(delta.x) * 300.0) * exp(-abs(delta.y) / glareLen) * brightness * 0.15;
+                        float glare = hGlare + vGlare;
+
+                        // Chromatic glare
+                        vec2 deltaR = posR - starPos;
+                        vec2 deltaB = posB - starPos;
+                        float glareR = exp(-abs(deltaR.y) * 300.0) * exp(-abs(deltaR.x) / glareLen) * brightness * 0.1;
+                        float glareB = exp(-abs(deltaB.y) * 300.0) * exp(-abs(deltaB.x) / glareLen) * brightness * 0.1;
+
+                        starColor.r += starR + bloomR + glare + glareR;
+                        starColor.g += starG + bloomG + glare;
+                        starColor.b += starB + bloomB + glare + glareB;
+                    }
+                }
+
+                // HUD ELEMENTS
+                if (inside > 0.5) {
+                    // SCANNING LINE - sweeps up and down
+                    float scanSpeed = 0.5;
+                    float scanY = sin(u_time * scanSpeed) * height * 0.8;
+                    float scanLine = smoothstep(0.004, 0.0, abs(pos.y - scanY)) * 0.2;
+                    starColor += vec3(scanLine * 0.5, scanLine, scanLine * 0.8);
+
+                    // 3. FILM GRAIN/NOISE
+                    float grain = fract(sin(dot(pos + u_time, vec2(12.9898, 78.233))) * 43758.5453);
+                    starColor += vec3(grain * 0.04);
+
+                    // 6. BINARY RAIN - vertical streaks
+                    for (int i = 0; i < 12; i++) {
+                        float fi = float(i);
+                        float rainX = (fract(sin(fi * 234.5) * 5765.3) - 0.5) * width * 2.0;
+                        float rainSpeed = 0.3 + fract(sin(fi * 567.8) * 2345.6) * 0.4;
+                        float rainY = fract(u_time * rainSpeed + fract(sin(fi * 789.1) * 3456.7)) * height * 2.0 - height;
+                        float rainLen = 0.03 + fract(sin(fi * 123.4) * 6789.0) * 0.04;
+
+                        float inRain = step(rainY, pos.y) * step(pos.y, rainY + rainLen);
+                        float rainDist = abs(pos.x - rainX);
+                        float rain = smoothstep(0.002, 0.0, rainDist) * inRain * 0.25;
+                        starColor.g += rain;
+                        starColor.b += rain * 0.5;
+                    }
+
+                    // 10. ENERGY FIELD - pulsing glow around edges
+                    float edgeDist = min(min(pos.x + width, width - pos.x), min(pos.y + height, height - pos.y));
+                    float energyPulse = sin(u_time * 3.0) * 0.5 + 0.5;
+                    float energyField = exp(-edgeDist * 15.0) * energyPulse * 0.15;
+                    starColor += vec3(energyField * 0.6, energyField, energyField * 0.8);
+
+                    // 12. DEPTH MARKERS - horizontal lines showing distance
+                    for (int d = 1; d <= 5; d++) {
+                        float fd = float(d);
+                        float depthY = -height + fd * (height * 2.0 / 6.0);
+                        float depthLine = smoothstep(0.002, 0.0, abs(pos.y - depthY));
+                        float depthFade = 1.0 - fd / 6.0;
+                        // Only on edges
+                        float onEdge = step(width - 0.05, abs(pos.x));
+                        starColor += vec3(depthLine * depthFade * onEdge * 0.3);
+                    }
+
+                    // 13. LENS DUST/PARTICLES - floating specks
+                    for (int p = 0; p < 8; p++) {
+                        float fp = float(p);
+                        float px = sin(u_time * 0.1 + fp * 1.5) * width * 0.8;
+                        float py = cos(u_time * 0.08 + fp * 2.1) * height * 0.8;
+                        float pDist = length(pos - vec2(px, py));
+                        float particle = smoothstep(0.008, 0.003, pDist) * 0.15;
+                        starColor += vec3(particle);
+                    }
+
+                    // 15. CHROMATIC PULSE - periodic color shift wave
+                    float pulseWave = sin(pos.y * 10.0 - u_time * 2.0) * 0.5 + 0.5;
+                    float pulseTrigger = smoothstep(0.8, 1.0, sin(u_time * 0.3));
+                    starColor.r += pulseWave * pulseTrigger * 0.08;
+                    starColor.b += (1.0 - pulseWave) * pulseTrigger * 0.08;
+                }
+
+                // White background, black rectangle with chromatic edges
+                vec3 color;
+                color.r = mix(1.0, starColor.r, insideR);
+                color.g = mix(1.0, starColor.g, insideG);
+                color.b = mix(1.0, starColor.b, insideB);
 
                 gl_FragColor = vec4(color, 1.0);
             }
         `;
 
         // Compile shader
-        function compileShader(gl, source, type) {
+        function createShader(gl, type, source) {
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
 
             if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
                 gl.deleteShader(shader);
                 return null;
             }
+
             return shader;
         }
 
         // Create program
-        const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
-        const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
+        const shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
 
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('Program link error:', gl.getProgramInfoLog(program));
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            console.error('Program linking error:', gl.getProgramInfoLog(shaderProgram));
         }
 
-        gl.useProgram(program);
-
-        // Set up geometry
+        // Setup buffers
         const positions = new Float32Array([
-            -1, -1,
-             1, -1,
-            -1,  1,
-             1,  1,
+            -1.0,  1.0,
+             1.0,  1.0,
+            -1.0, -1.0,
+             1.0, -1.0,
         ]);
 
         const positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 
-        const positionLocation = gl.getAttribLocation(program, 'a_position');
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        // Get attribute and uniform locations
+        const positionAttributeLocation = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+        const resolutionUniformLocation = gl.getUniformLocation(shaderProgram, 'u_resolution');
+        const timeUniformLocation = gl.getUniformLocation(shaderProgram, 'u_time');
 
-        // Get uniform locations
-        const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
-        const timeLocation = gl.getUniformLocation(program, 'u_time');
+        // Resize canvas for mobile
+        function resizeCanvas() {
+            const maxWidth = 300;
+            const maxHeight = 500;
+            const vw = window.innerWidth * 0.8;
+            const vh = window.innerHeight * 0.6;
 
-        // Animation loop
-        function render(time) {
-            time *= 0.001; // Convert to seconds
+            canvas.width = Math.min(vw, maxWidth);
+            canvas.height = Math.min(vh, maxHeight);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
 
-            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-            gl.uniform1f(timeLocation, time);
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
+        // Render loop
+        let startTime = Date.now();
+
+        function render() {
+            const currentTime = (Date.now() - startTime) / 1000.0;
+
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            gl.useProgram(shaderProgram);
+
+            // Set uniforms
+            gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+            gl.uniform1f(timeUniformLocation, currentTime);
+
+            // Bind position buffer
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Draw
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
             requestAnimationFrame(render);
         }
 
-        requestAnimationFrame(render);
+        render();
     </script>
 </body>
 </html>
