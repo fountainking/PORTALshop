@@ -10,11 +10,219 @@
             padding: 0;
             box-sizing: border-box;
         }
+        html {
+            background: #ffffff !important;
+        }
         body {
-            background: #ffffff;
+            background: #ffffff !important;
             min-height: 100vh;
             overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            z-index: 300;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: #000;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .cart-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+        .cart-icon:hover {
+            opacity: 1;
+        }
+        .hamburger {
+            width: 28px;
+            height: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            z-index: 300;
+            position: relative;
+        }
+        .hamburger span {
+            display: block;
+            height: 2px;
+            background: #000;
+            transition: all 0.3s ease;
+        }
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
+        /* Menu Overlay */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 250;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .menu-overlay a {
+            font-size: 32px;
+            font-weight: 300;
+            color: #000;
+            text-decoration: none;
+            margin: 20px 0;
+            letter-spacing: 4px;
+            transition: opacity 0.2s ease;
+        }
+        .menu-overlay a:hover {
+            opacity: 0.5;
+        }
+
+        /* Footer / Social Icons */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding: 20px;
+            z-index: 200;
+        }
+        .social-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+        .social-icon:hover {
+            opacity: 1;
+        }
+
+        /* Product Display */
+        .product-section {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            pointer-events: none;
+        }
+        .product-carousel {
+            width: 100%;
+            overflow: hidden;
+            pointer-events: all;
+            touch-action: pan-x;
+        }
+        .product-track {
+            display: flex;
+            transition: transform 0.3s ease;
+        }
+        .product-item {
+            min-width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .product-shape {
+            width: 220px;
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .product-shape svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3));
+        }
+
+        /* Product Info */
+        .product-info {
+            position: fixed;
+            bottom: 80px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 150;
+            padding: 0 20px;
+        }
+        .product-name {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            color: #000;
+        }
+        .product-price {
+            font-size: 16px;
+            font-weight: 400;
+            color: #666;
+        }
+
+        /* Swipe indicators */
+        .swipe-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+            pointer-events: all;
+        }
+        .swipe-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .swipe-dot.active {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Portal */
         .portal-container {
             position: fixed;
             top: 50%;
@@ -24,20 +232,224 @@
         }
         canvas {
             display: block;
-            width: 80vw;
-            max-width: 300px;
-            height: 60vh;
-            max-height: 500px;
+            width: calc(90vw + 1in);
+            max-width: 500px;
+            height: calc(75vh + 1in);
+            max-height: 850px;
             background: transparent;
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">LOGO</div>
+        <div class="header-right">
+            <svg class="cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <div class="hamburger" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay">
+        <a href="#cart">CART</a>
+        <a href="#about">ABOUT</a>
+    </div>
+
+    <!-- Product Carousel (above portal) -->
+    <div class="product-section">
+        <div class="product-carousel" id="productCarousel">
+            <div class="product-track" id="productTrack">
+                <div class="product-item">
+                    <div class="product-shape">
+                        <svg viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="2">
+                            <circle cx="50" cy="50" r="40"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="product-item">
+                    <div class="product-shape">
+                        <svg viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="2">
+                            <rect x="15" y="15" width="70" height="70"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="product-item">
+                    <div class="product-shape">
+                        <svg viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="2">
+                            <polygon points="50,10 90,85 10,85"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="swipe-dots">
+            <div class="swipe-dot active" onclick="goToProduct(0)"></div>
+            <div class="swipe-dot" onclick="goToProduct(1)"></div>
+            <div class="swipe-dot" onclick="goToProduct(2)"></div>
+        </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="product-info">
+        <div class="product-name" id="productName">CIRCLE</div>
+        <div class="product-price" id="productPrice">$49.00</div>
+    </div>
+
+    <!-- Portal -->
     <div class="portal-container">
         <canvas id="glCanvas"></canvas>
     </div>
 
+    <!-- Footer / Social Icons -->
+    <footer class="footer">
+        <!-- Instagram -->
+        <svg class="social-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+        <!-- Twitter/X -->
+        <svg class="social-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4l11.5 16h4.5l-11.5-16z"></path>
+            <path d="M4 20l6.5-6.5"></path>
+            <path d="M20 4l-6.5 6.5"></path>
+        </svg>
+        <!-- Email -->
+        <svg class="social-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+    </footer>
+
     <script>
+        // IMU / Device Orientation
+        let tiltX = 0;
+        let tiltY = 0;
+        let hasPermission = false;
+
+        function handleOrientation(event) {
+            // gamma is left/right tilt (-90 to 90)
+            // beta is front/back tilt (-180 to 180)
+            tiltX = (event.gamma || 0) / 90; // normalize to -1 to 1
+            tiltY = (event.beta || 0) / 180; // normalize to -1 to 1
+        }
+
+        // iOS 13+ requires permission request
+        function requestIMUPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permission => {
+                        if (permission === 'granted') {
+                            hasPermission = true;
+                            window.addEventListener('deviceorientation', handleOrientation);
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Non-iOS or older iOS
+                hasPermission = true;
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+        }
+
+        // Request on first tap anywhere
+        document.addEventListener('click', function initIMU() {
+            if (!hasPermission) {
+                requestIMUPermission();
+            }
+        }, { once: false });
+
+        // Try to init immediately for non-iOS
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission !== 'function') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            hasPermission = true;
+        }
+
+        // Product data
+        const products = [
+            { name: 'CIRCLE', price: '$49.00' },
+            { name: 'SQUARE', price: '$59.00' },
+            { name: 'TRIANGLE', price: '$69.00' }
+        ];
+
+        let currentProduct = 0;
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+
+        const track = document.getElementById('productTrack');
+        const carousel = document.getElementById('productCarousel');
+        const productName = document.getElementById('productName');
+        const productPrice = document.getElementById('productPrice');
+        const dots = document.querySelectorAll('.swipe-dot');
+
+        function updateProduct(index) {
+            currentProduct = index;
+            track.style.transform = `translateX(-${index * 100}%)`;
+            productName.textContent = products[index].name;
+            productPrice.textContent = products[index].price;
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+
+        function goToProduct(index) {
+            updateProduct(index);
+        }
+
+        // Touch events
+        carousel.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+            track.style.transition = 'none';
+        });
+
+        carousel.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            const offset = -currentProduct * 100;
+            const percentDiff = (diff / carousel.offsetWidth) * 100;
+            track.style.transform = `translateX(calc(${offset}% + ${diff}px))`;
+        });
+
+        carousel.addEventListener('touchend', (e) => {
+            isDragging = false;
+            track.style.transition = 'transform 0.3s ease';
+            const diff = currentX - startX;
+
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentProduct > 0) {
+                    updateProduct(currentProduct - 1);
+                } else if (diff < 0 && currentProduct < products.length - 1) {
+                    updateProduct(currentProduct + 1);
+                } else {
+                    updateProduct(currentProduct);
+                }
+            } else {
+                updateProduct(currentProduct);
+            }
+        });
+
+        // Menu toggle
+        function toggleMenu() {
+            const hamburger = document.querySelector('.hamburger');
+            const menu = document.getElementById('menuOverlay');
+            hamburger.classList.toggle('active');
+            menu.classList.toggle('active');
+        }
+
         const canvas = document.getElementById('glCanvas');
         const gl = canvas.getContext('webgl');
 
@@ -61,6 +473,7 @@
 
             uniform vec2 u_resolution;
             uniform float u_time;
+            uniform vec2 u_tilt;
 
             void main() {
                 vec2 st = gl_FragCoord.xy / u_resolution.xy;
@@ -140,13 +553,16 @@
                         float gridLineThickness = 0.001;
 
                         if (vGridSpacing > 0.01) {
+                            // Apply parallax to grid based on scale (closer grids move more)
+                            vec2 gridPos = pos + u_tilt * scale * 0.08;
+
                             // Vertical lines
-                            float vDist = abs(mod(pos.x + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float vDist = abs(mod(gridPos.x + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
                             float vLine = smoothstep(gridLineThickness, 0.0, vDist);
 
                             // Horizontal lines with offset to avoid center
                             float hOffset = 0.04; // offset away from center
-                            float hDist = abs(mod(pos.y + hOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float hDist = abs(mod(gridPos.y + hOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
                             float hLine = smoothstep(gridLineThickness, 0.0, hDist);
 
                             float grid = max(hLine, vLine);
@@ -156,12 +572,12 @@
 
                             // Chromatic aberration
                             float caOffset = 0.003;
-                            float vDistR = abs(mod(pos.x + caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
-                            float hDistR = abs(mod(pos.y + hOffset + caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float vDistR = abs(mod(gridPos.x + caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float hDistR = abs(mod(gridPos.y + hOffset + caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
                             float gridR = max(smoothstep(gridLineThickness, 0.0, vDistR), smoothstep(gridLineThickness, 0.0, hDistR));
 
-                            float vDistB = abs(mod(pos.x - caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
-                            float hDistB = abs(mod(pos.y + hOffset - caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
+                            float vDistB = abs(mod(gridPos.x - caOffset + vGridSpacing * 0.5, vGridSpacing) - vGridSpacing * 0.5);
+                            float hDistB = abs(mod(gridPos.y + hOffset - caOffset + hGridSpacing * 0.5, hGridSpacing) - hGridSpacing * 0.5);
                             float gridB = max(smoothstep(gridLineThickness, 0.0, vDistB), smoothstep(gridLineThickness, 0.0, hDistB));
 
                             // Very transparent - dots should be brightest
@@ -253,6 +669,10 @@
                         float scale = 1.0 / (z + 0.1);
                         vec2 starPos = vec2(starX, starY) * scale * 0.1;
 
+                        // Apply parallax based on tilt - closer stars move more
+                        float parallaxStrength = (1.0 - z) * 0.15;
+                        starPos += u_tilt * parallaxStrength;
+
                         // Star size grows as it gets closer
                         float starSize = (1.0 - z) * 0.008 + 0.001;
 
@@ -332,17 +752,6 @@
                     float energyField = exp(-edgeDist * 15.0) * energyPulse * 0.15;
                     starColor += vec3(energyField * 0.6, energyField, energyField * 0.8);
 
-                    // 12. DEPTH MARKERS - horizontal lines showing distance
-                    for (int d = 1; d <= 5; d++) {
-                        float fd = float(d);
-                        float depthY = -height + fd * (height * 2.0 / 6.0);
-                        float depthLine = smoothstep(0.002, 0.0, abs(pos.y - depthY));
-                        float depthFade = 1.0 - fd / 6.0;
-                        // Only on edges
-                        float onEdge = step(width - 0.05, abs(pos.x));
-                        starColor += vec3(depthLine * depthFade * onEdge * 0.3);
-                    }
-
                     // 13. LENS DUST/PARTICLES - floating specks
                     for (int p = 0; p < 8; p++) {
                         float fp = float(p);
@@ -414,13 +823,14 @@
         const positionAttributeLocation = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
         const resolutionUniformLocation = gl.getUniformLocation(shaderProgram, 'u_resolution');
         const timeUniformLocation = gl.getUniformLocation(shaderProgram, 'u_time');
+        const tiltUniformLocation = gl.getUniformLocation(shaderProgram, 'u_tilt');
 
         // Resize canvas for mobile
         function resizeCanvas() {
-            const maxWidth = 300;
-            const maxHeight = 500;
-            const vw = window.innerWidth * 0.8;
-            const vh = window.innerHeight * 0.6;
+            const maxWidth = 500;
+            const maxHeight = 850;
+            const vw = window.innerWidth * 0.9;
+            const vh = window.innerHeight * 0.75;
 
             canvas.width = Math.min(vw, maxWidth);
             canvas.height = Math.min(vh, maxHeight);
@@ -444,6 +854,7 @@
             // Set uniforms
             gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
             gl.uniform1f(timeUniformLocation, currentTime);
+            gl.uniform2f(tiltUniformLocation, tiltX, tiltY);
 
             // Bind position buffer
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
