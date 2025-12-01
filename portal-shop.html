@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PORTAL</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #ffffff;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #portalCanvas {
+            width: 90vw;
+            max-width: 400px;
+            height: 70vh;
+            max-height: 600px;
+        }
+
+        @media (max-width: 768px) {
+            #portalCanvas {
+                width: 85vw;
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="portalCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('portalCanvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+        if (!gl) {
+            alert('WebGL not supported');
+        }
+
+        // Set canvas size
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Vertex shader
+        const vertexShaderSource = `
+            attribute vec2 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+
+        // Fragment shader - Black rounded rectangle with warp stars
+        const fragmentShaderSource = `
+            precision highp float;
+            uniform vec2 u_resolution;
+            uniform float u_time;
+
+            // Hash function for randomness
+            float hash(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+            }
+
+            float hash13(vec3 p) {
+                return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+            }
+
+            // Noise for turbulence
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
+            // Fractal noise for turbulence
+            float fbm(vec2 p) {
+                float value = 0.0;
+                float amplitude = 0.5;
+                for (int i = 0; i < 8; i++) {
+                    value += amplitude * noise(p);
+                    p *= 2.3;
+                    amplitude *= 0.5;
+                }
+                return value;
+            }
+
+            // Curl noise for vortex-like turbulence
+            vec2 curl(vec2 p, float time) {
+                float eps = 0.01;
+                float n1 = fbm(p + vec2(eps, 0.0) + time * 0.2);
+                float n2 = fbm(p - vec2(eps, 0.0) + time * 0.2);
+                float n3 = fbm(p + vec2(0.0, eps) + time * 0.2);
+                float n4 = fbm(p - vec2(0.0, eps) + time * 0.2);
+
+                return vec2(n3 - n4, n2 - n1) / (2.0 * eps);
+            }
+
+            // Rounded rectangle SDF
+            float roundedRect(vec2 p, vec2 size, float radius) {
+                vec2 d = abs(p) - size + radius;
+                return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - radius;
+            }
+
+            // Liquid turbulence particle system with rim attraction
+            vec3 turbulentParticles(vec2 uv, float time) {
+                vec3 color = vec3(0.0);
+
+                vec2 rectSize = vec2(0.35, 0.65);
+                float cornerRadius = 0.08;
+
+                // Many more layers for density
+                for (float layer = 0.0; layer < 12.0; layer++) {
+                    float speed = 0.2 + layer * 0.1;
+                    float depth = 1.0 + layer * 0.3;
+
+                    // Multi-layered turbulence flow field
+                    vec2 flowUV = uv * 3.0;
+
+                    // Curl noise for vortex motion
+                    vec2 curlFlow = curl(flowUV * 0.5, time) * 0.4;
+
+                    // Regular turbulence
+                    vec2 turbulence = vec2(
+                        fbm(flowUV + vec2(time * 0.5, 0.0)),
+                        fbm(flowUV + vec2(0.0, time * 0.5))
+                    ) * 2.0 - 1.0;
+                    turbulence *= 0.3;
+
+                    // Combine curl and turbulence for more complex flow
+                    vec2 combinedFlow = turbulence + curlFlow;
+
+                    // Add spiraling motion
+                    float angle = atan(uv.y, uv.x);
+                    float spiralStrength = sin(time * 0.3 + length(uv) * 3.0) * 0.2;
+                    vec2 spiral = vec2(-sin(angle), cos(angle)) * spiralStrength;
+                    combinedFlow += spiral;
+
+                    // Distance to rim
+                    float distToRim = abs(roundedRect(uv, rectSize, cornerRadius));
+
+                    // Attraction force toward rim
+                    vec2 toRim = normalize(uv) * sign(roundedRect(uv, rectSize, cornerRadius));
+                    float rimAttraction = smoothstep(0.2, 0.0, distToRim) * 0.5;
+
+                    // Animate depth
+                    float z = fract(depth - time * speed);
+
+                    // Apply complex turbulence and rim attraction
+                    vec2 particleUV = uv / z;
+                    particleUV += combinedFlow * (1.0 - z);
+                    particleUV += toRim * rimAttraction;
+                    particleUV *= 8.0;
+
+                    // Super dense grid
+                    vec2 gv = fract(particleUV) - 0.5;
+                    vec2 id = floor(particleUV);
+
+                    float n = hash13(vec3(id, layer));
+
+                    // Way more particles - lower threshold
+                    if (n > 0.4) {
+                        vec2 offset = vec2(hash(id + 0.1), hash(id + 0.2)) - 0.5;
+                        offset *= 0.5;
+
+                        vec2 particlePos = gv - offset;
+
+                        // Varied particle sizes with pulsing
+                        float sizeVariation = hash(id + 100.0);
+                        float pulse = sin(time * 2.0 + n * 6.28) * 0.5 + 0.5;
+
+                        // Much more size variation - some tiny, some large
+                        float baseSize = 0.003 + pow(sizeVariation, 2.0) * 0.025;
+                        float size = baseSize * (0.8 + pulse * 0.4);
+
+                        float d = length(particlePos);
+
+                        float brightness = smoothstep(size, 0.0, d);
+
+                        // Increase density near rim
+                        float rimDensity = 1.0 + smoothstep(0.15, 0.0, distToRim) * 3.0;
+                        brightness *= rimDensity;
+
+                        // Super bright
+                        brightness *= 10.0;
+
+                        // Fade based on depth
+                        brightness *= (1.0 - z) * 1.2;
+
+                        // Color gradient based on distance from center
+                        float centerDist = length(uv);
+                        vec3 particleColor = vec3(1.0);
+
+                        // Gradient: blue > light blue > red > orange > yellow > white
+                        float t = smoothstep(0.0, 0.9, centerDist);
+
+                        if (t < 0.2) {
+                            // Blue to light blue
+                            particleColor = mix(
+                                vec3(0.0, 0.2, 0.8),  // Dark blue
+                                vec3(0.3, 0.7, 1.0),  // Light blue
+                                t / 0.2
+                            );
+                        } else if (t < 0.4) {
+                            // Light blue to red
+                            particleColor = mix(
+                                vec3(0.3, 0.7, 1.0),  // Light blue
+                                vec3(1.0, 0.0, 0.2),  // Red
+                                (t - 0.2) / 0.2
+                            );
+                        } else if (t < 0.6) {
+                            // Red to orange
+                            particleColor = mix(
+                                vec3(1.0, 0.0, 0.2),  // Red
+                                vec3(1.0, 0.5, 0.0),  // Orange
+                                (t - 0.4) / 0.2
+                            );
+                        } else if (t < 0.8) {
+                            // Orange to yellow
+                            particleColor = mix(
+                                vec3(1.0, 0.5, 0.0),  // Orange
+                                vec3(1.0, 1.0, 0.0),  // Yellow
+                                (t - 0.6) / 0.2
+                            );
+                        } else {
+                            // Yellow to white
+                            particleColor = mix(
+                                vec3(1.0, 1.0, 0.0),  // Yellow
+                                vec3(1.0, 1.0, 1.0),  // White
+                                (t - 0.8) / 0.2
+                            );
+                        }
+
+                        color += particleColor * brightness;
+                    }
+                }
+
+                return color;
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+
+                // Adjust for vertical rectangle
+                vec2 rectSize = vec2(0.35, 0.65);
+                float cornerRadius = 0.08;
+
+                // Calculate rounded rectangle
+                float d = roundedRect(uv, rectSize, cornerRadius);
+                float rectMask = 1.0 - smoothstep(0.0, 0.002, d);
+
+                // Inside the rectangle: black background with warp stars
+                vec3 color = vec3(0.0); // Pure black
+
+                if (rectMask > 0.5) {
+                    // Add turbulent particles with rim attraction
+                    vec3 particles = turbulentParticles(uv, u_time * 0.5);
+                    color += particles;
+                }
+
+                // Apply mask
+                color *= rectMask;
+
+                // Background is white (handled by CSS)
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        // Compile shader
+        function compileShader(gl, source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        // Create program
+        const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Program link error:', gl.getProgramInfoLog(program));
+        }
+
+        gl.useProgram(program);
+
+        // Set up geometry
+        const positions = new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1,
+        ]);
+
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+        const positionLocation = gl.getAttribLocation(program, 'a_position');
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+        // Get uniform locations
+        const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+        const timeLocation = gl.getUniformLocation(program, 'u_time');
+
+        // Animation loop
+        function render(time) {
+            time *= 0.001; // Convert to seconds
+
+            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+            gl.uniform1f(timeLocation, time);
+
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>

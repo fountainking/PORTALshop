@@ -4,7 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Shader</title>
+    <link rel="stylesheet" href="https://use.typekit.net/xxxxxxx.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <style>
+        @font-face {
+            font-family: 'Automate OT';
+            src: local('Automate OT'), local('AutomateOT');
+        }
         * {
             margin: 0;
             padding: 0;
@@ -17,7 +23,7 @@
             background: #ffffff !important;
             min-height: 100vh;
             overflow-x: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Automate OT', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         /* Header */
@@ -54,29 +60,23 @@
             opacity: 1;
         }
         .hamburger {
-            width: 28px;
-            height: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            width: 44px;
+            height: 44px;
             cursor: pointer;
             z-index: 300;
             position: relative;
+            transition: filter 0.2s ease;
         }
-        .hamburger span {
-            display: block;
-            height: 2px;
-            background: #000;
-            transition: all 0.3s ease;
+        #hamburgerLottie {
+            width: 100%;
+            height: 100%;
+            filter: brightness(0);
         }
-        .hamburger.active span:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
+        .hamburger:hover #hamburgerLottie {
+            filter: brightness(0) sepia(1) hue-rotate(180deg) saturate(5);
         }
-        .hamburger.active span:nth-child(2) {
-            opacity: 0;
-        }
-        .hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
+        .hamburger.open:hover #hamburgerLottie {
+            filter: brightness(0) sepia(1) hue-rotate(-30deg) saturate(10);
         }
 
         /* Menu Overlay */
@@ -188,18 +188,19 @@
             text-align: center;
             z-index: 150;
             padding: 0 20px;
+            mix-blend-mode: difference;
         }
         .product-name {
             font-size: 18px;
             font-weight: 600;
             letter-spacing: 2px;
             margin-bottom: 8px;
-            color: #000;
+            color: #fff;
         }
         .product-price {
             font-size: 16px;
             font-weight: 400;
-            color: #666;
+            color: #fff;
         }
 
         /* Swipe indicators */
@@ -209,17 +210,50 @@
             gap: 8px;
             margin-top: 15px;
             pointer-events: all;
+            mix-blend-mode: difference;
         }
         .swipe-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.3);
             cursor: pointer;
             transition: background 0.2s ease;
         }
         .swipe-dot.active {
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        /* Nav arrows (desktop) */
+        .nav-arrow {
+            display: none;
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            outline: none;
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 24px;
+            transition: opacity 0.2s ease;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            mix-blend-mode: difference;
+            pointer-events: all;
+            opacity: 0.7;
+        }
+        .nav-arrow:hover {
+            opacity: 1;
+        }
+        .nav-arrow.prev {
+            left: calc(50% - 200px);
+        }
+        .nav-arrow.next {
+            right: calc(50% - 200px);
         }
 
         /* Portal */
@@ -238,12 +272,118 @@
             max-height: 850px;
             background: transparent;
         }
+
+        /* ========== DESKTOP STYLES ========== */
+        @media (min-width: 768px) {
+            /* Header - horizontal nav */
+            .header {
+                padding: 30px 50px;
+            }
+            .logo {
+                font-size: 22px;
+            }
+            .hamburger {
+                display: none;
+            }
+            .header-nav {
+                display: flex;
+                gap: 40px;
+            }
+            .header-nav a {
+                font-size: 14px;
+                font-weight: 500;
+                color: #000;
+                text-decoration: none;
+                letter-spacing: 2px;
+                opacity: 0.7;
+                transition: opacity 0.3s ease;
+            }
+            .header-nav a:hover {
+                opacity: 1;
+            }
+            .cart-icon {
+                width: 28px;
+                height: 28px;
+            }
+            .menu-overlay {
+                display: none;
+            }
+
+            /* Product hover effects */
+            .product-item {
+                cursor: pointer;
+                transition: transform 0.3s ease;
+            }
+            .product-shape {
+                transition: transform 0.3s ease;
+            }
+            .product-shape svg {
+                transition: filter 0.3s ease, transform 0.3s ease;
+            }
+            .product-item:hover .product-shape {
+                transform: scale(1.1);
+            }
+            .product-item:hover .product-shape svg {
+                filter: drop-shadow(0 8px 40px rgba(255, 255, 255, 0.6));
+            }
+
+            /* Swipe dots hover */
+            .swipe-dot {
+                transition: background 0.2s ease, transform 0.2s ease;
+            }
+            .swipe-dot:hover {
+                transform: scale(1.3);
+            }
+
+            /* Nav arrows visible on desktop */
+            .nav-arrow {
+                display: flex;
+            }
+
+            /* Footer */
+            .footer {
+                gap: 32px;
+                padding: 30px;
+            }
+            .social-icon {
+                width: 28px;
+                height: 28px;
+                transition: opacity 0.3s ease, transform 0.3s ease;
+            }
+            .social-icon:hover {
+                transform: translateY(-3px);
+            }
+
+            /* Larger portal on desktop */
+            canvas {
+                width: 70vw;
+                max-width: 700px;
+                height: 80vh;
+                max-height: 900px;
+            }
+        }
+
+        /* Large desktop */
+        @media (min-width: 1200px) {
+            .header {
+                padding: 40px 80px;
+            }
+            canvas {
+                max-width: 800px;
+                max-height: 1000px;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="logo">LOGO</div>
+        <nav class="header-nav">
+            <a href="#about">ABOUT</a>
+            <a href="#shop">SHOP</a>
+            <a href="#contact">CONTACT</a>
+        </nav>
         <div class="header-right">
             <svg class="cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="9" cy="21" r="1"></circle>
@@ -251,9 +391,7 @@
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
             <div class="hamburger" onclick="toggleMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
+                <div id="hamburgerLottie"></div>
             </div>
         </div>
     </header>
@@ -298,6 +436,10 @@
         </div>
     </div>
 
+    <!-- Nav Arrows (desktop) -->
+    <button class="nav-arrow prev" onclick="prevProduct()">&lt;</button>
+    <button class="nav-arrow next" onclick="nextProduct()">&gt;</button>
+
     <!-- Product Info -->
     <div class="product-info">
         <div class="product-name" id="productName">CIRCLE</div>
@@ -331,16 +473,42 @@
     </footer>
 
     <script>
-        // IMU / Device Orientation
+        // Tilt/Parallax values (used by both mouse and IMU)
         let tiltX = 0;
         let tiltY = 0;
+        let targetTiltX = 0;
+        let targetTiltY = 0;
         let hasPermission = false;
+        let isDesktop = window.innerWidth >= 768;
 
+        // Smooth interpolation for parallax
+        function lerp(start, end, factor) {
+            return start + (end - start) * factor;
+        }
+
+        // Mouse movement handler (desktop)
+        function handleMouseMove(event) {
+            if (!isDesktop) return;
+            // Normalize mouse position to -1 to 1
+            targetTiltX = (event.clientX / window.innerWidth - 0.5) * 2;
+            targetTiltY = (event.clientY / window.innerHeight - 0.5) * 2;
+        }
+
+        // Add mouse listener for desktop
+        document.addEventListener('mousemove', handleMouseMove);
+
+        // Update on resize
+        window.addEventListener('resize', () => {
+            isDesktop = window.innerWidth >= 768;
+        });
+
+        // IMU / Device Orientation (mobile)
         function handleOrientation(event) {
+            if (isDesktop) return;
             // gamma is left/right tilt (-90 to 90)
             // beta is front/back tilt (-180 to 180)
-            tiltX = (event.gamma || 0) / 90; // normalize to -1 to 1
-            tiltY = (event.beta || 0) / 180; // normalize to -1 to 1
+            targetTiltX = (event.gamma || 0) / 90; // normalize to -1 to 1
+            targetTiltY = (event.beta || 0) / 180; // normalize to -1 to 1
         }
 
         // iOS 13+ requires permission request
@@ -364,7 +532,7 @@
 
         // Request on first tap anywhere
         document.addEventListener('click', function initIMU() {
-            if (!hasPermission) {
+            if (!hasPermission && !isDesktop) {
                 requestIMUPermission();
             }
         }, { once: false });
@@ -375,6 +543,14 @@
             window.addEventListener('deviceorientation', handleOrientation);
             hasPermission = true;
         }
+
+        // Smooth tilt update loop
+        function updateTilt() {
+            tiltX = lerp(tiltX, targetTiltX, 0.08);
+            tiltY = lerp(tiltY, targetTiltY, 0.08);
+            requestAnimationFrame(updateTilt);
+        }
+        updateTilt();
 
         // Product data
         const products = [
@@ -406,6 +582,18 @@
 
         function goToProduct(index) {
             updateProduct(index);
+        }
+
+        function prevProduct() {
+            if (currentProduct > 0) {
+                updateProduct(currentProduct - 1);
+            }
+        }
+
+        function nextProduct() {
+            if (currentProduct < products.length - 1) {
+                updateProduct(currentProduct + 1);
+            }
         }
 
         // Touch events
@@ -442,12 +630,32 @@
             }
         });
 
-        // Menu toggle
+        // Menu toggle with Lottie
+        let menuOpen = false;
+        const hamburgerAnim = lottie.loadAnimation({
+            container: document.getElementById('hamburgerLottie'),
+            renderer: 'svg',
+            loop: false,
+            autoplay: false,
+            path: 'hamburger.json'
+        });
+
         function toggleMenu() {
             const hamburger = document.querySelector('.hamburger');
             const menu = document.getElementById('menuOverlay');
-            hamburger.classList.toggle('active');
-            menu.classList.toggle('active');
+
+            if (!menuOpen) {
+                // Play first half: hamburger -> X (frames 0-40)
+                hamburgerAnim.playSegments([0, 40], true);
+                menu.classList.add('active');
+                hamburger.classList.add('open');
+            } else {
+                // Play second half: X -> hamburger (frames 40-84)
+                hamburgerAnim.playSegments([40, 84], true);
+                menu.classList.remove('active');
+                hamburger.classList.remove('open');
+            }
+            menuOpen = !menuOpen;
         }
 
         const canvas = document.getElementById('glCanvas');
